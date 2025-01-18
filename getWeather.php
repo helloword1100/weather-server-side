@@ -7,9 +7,9 @@ $dbname = 'weather_db';
 
 // Create a MySQL connection
 $conn = new mysqli($host, $username, $password, $dbname);
-if ($conn->connect_error) {
-    die(json_encode(["error" => "Database connection failed: " . $conn->connect_error]));
-}
+// if ($conn->connect_error) {
+//     die(json_encode(["error" => "Database connection failed: " . $conn->connect_error]));
+// }
 
 $city = $_GET['city'] ?? '';
 $response = [];
