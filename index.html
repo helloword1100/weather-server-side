@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Weather Data</title>
+</head>
+<body>
+    <h1>Live Weather Data</h1>
+    <p>Enter a city to get the weather information:</p>
+    <input type="text" id="cityInput" placeholder="City name">
+    <button onclick="getWeatherData()">Get Weather</button>
+    <div id="weatherInfo"></div>
+
+ 
+    <script>
+        function getWeatherData() {
+            const city = document.getElementById('cityInput').value.trim();
+            const weatherInfoDiv = document.getElementById('weatherInfo');
+        
+            if (!city) {
+                weatherInfoDiv.innerHTML = '<p>Please enter a city name.</p>';
+                return;
+            }
+        
+            // Make an API request to the PHP script
+            fetch(`getWeather.php?city=${encodeURIComponent(city)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json(); // Safely parse JSON
+                })
+                .then(data => {
+                    if (data.error) {
+                        weatherInfoDiv.innerHTML = `<p>Error: ${data.error}</p>`;
+                    } else {
+                        const { city_name, country_code, temperature, description } = data;
+                        weatherInfoDiv.innerHTML = `
+                            <h2>Weather in ${city_name}, ${country_code}</h2>
+                            <p>Temperature: ${temperature} °C</p>
+                            <p>Description: ${description}</p>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching weather data:', error);
+                    weatherInfoDiv.innerHTML = '<p>Error fetching weather data. Please try again later.</p>';
+                });
+        }
+        </script>
+        
+        
+</body>
+</html>
