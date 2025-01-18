@@ -6,30 +6,40 @@ $password = '';
 $dbname = 'weather_db';
 
 // Create a MySQL connection
-$conn = new mysqli($host, $username, $password, $dbname);
-// if ($conn->connect_error) {
-//     die(json_encode(["error" => "Database connection failed: " . $conn->connect_error]));
-// }
+$conn = @new mysqli($host, $username, $password, $dbname);
+
+// Check if the connection was successful
+$dbConnected = !$conn->connect_error;
 
 $city = $_GET['city'] ?? '';
 $response = [];
 
 if ($city) {
-    $sql = "SELECT * FROM weather_cache WHERE city_name = ? AND TIMESTAMPDIFF(MINUTE, timestamp, NOW()) < 30";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $city);
-    $stmt->execute();
-    $result = $stmt->get_result();
+    if ($dbConnected) {
+        // Try to retrieve cached data
+        $sql = "SELECT * FROM weather_cache WHERE city_name = ? AND TIMESTAMPDIFF(MINUTE, timestamp, NOW()) < 30";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("s", $city);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
-    if ($result->num_rows > 0) {
-        $row = $result->fetch_assoc();
-        $response = [
-            'city_name' => $row['city_name'],
-            'country_code' => $row['country_code'],
-            'temperature' => $row['temperature'],
-            'description' => $row['description']
-        ];
+        if ($result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            $response = [
+                'city_name' => $row['city_name'],
+                'country_code' => $row['country_code'],
+                'temperature' => $row['temperature'],
+                'description' => $row['description']
+            ];
+        } else {
+            $fetchFromAPI = true;
+        }
     } else {
+        $fetchFromAPI = true;
+    }
+
+    if (isset($fetchFromAPI) && $fetchFromAPI) {
+        // Fetch data from the API
         $url = "https://api.openweathermap.org/data/2.5/weather?q={$city}&appid={$apiKey}";
         $data = file_get_contents($url);
 
@@ -46,11 +56,14 @@ if ($city) {
             $cityName = $weatherData['name'];
             $country = $weatherData['sys']['country'];
 
-            $sql = "INSERT INTO weather_cache (city_name, country_code, temperature, description) 
-                    VALUES (?, ?, ?, ?)";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("ssss", $cityName, $country, $temperature, $description);
-            $stmt->execute();
+            if ($dbConnected) {
+                // Save data to the cache
+                $sql = "INSERT INTO weather_cache (city_name, country_code, temperature, description) 
+                        VALUES (?, ?, ?, ?)";
+                $stmt = $conn->prepare($sql);
+                $stmt->bind_param("ssss", $cityName, $country, $temperature, $description);
+                $stmt->execute();
+            }
 
             $response = [
                 'city_name' => $cityName,
@@ -66,6 +79,9 @@ if ($city) {
     $response = ['error' => 'City name is required.'];
 }
 
-$conn->close();
+if ($dbConnected) {
+    $conn->close();
+}
+
 header('Content-Type: application/json');
 echo json_encode($response);
